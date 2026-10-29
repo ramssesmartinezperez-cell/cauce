@@ -1,0 +1,679 @@
+PRUEBA<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cauce CBTIS 165</title>
+<meta name="description" content="Brigadas del agua del CBTIS 165 Coatepec: reporta fugas, inundaciones, coladeras tapadas y basura.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600;700&display=swap">
+<style>
+/* Layout: app del clima. El cielo animado (lluvia, nubes o sol) ocupa toda la pantalla detrás; encima, la temperatura grande
+   y tarjetas de cristal con el trabajo de las brigadas. Un solo tema: lo decide el cielo, no el sistema. */
+:root{
+  --ink:#ffffff; --dim:rgba(255,255,255,.74); --faint:rgba(255,255,255,.5);
+  --glass:rgba(22,30,64,.42); --glass-2:rgba(255,255,255,.12); --edge:rgba(255,255,255,.18);
+  --red:#ff7a7a; --amber:#ffd166; --green:#6ee7a0; --gray:#b8c0d8; --water:#7dd3fc;
+  --f:"Onest", "Segoe UI", system-ui, sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:#2a2f63}
+body{background:#2a2f63;color:var(--ink);font-family:var(--f);font-size:16px;line-height:1.45;min-height:100vh}
+
+/* ---- Cielo ---- */
+.sky{position:fixed;inset:0;z-index:0;overflow:hidden;transition:background 1.2s ease}
+.sky[data-w="lluvia"]{background:linear-gradient(180deg,#5b5fa8 0%,#454c8f 38%,#2d3570 70%,#232a5a 100%)}
+.sky[data-w="nublado"]{background:linear-gradient(180deg,#8f8fb8 0%,#6f74a3 40%,#4a5186 75%,#323a6c 100%)}
+.sky[data-w="soleado"]{background:linear-gradient(180deg,#2f8de4 0%,#57a8ee 40%,#8cc6f2 72%,#bfe0f5 100%)}
+.sky[data-w="soleado"][data-night]{background:linear-gradient(180deg,#0d1640 0%,#1a2560 55%,#2b356f 100%)}
+.sky[data-w="lluvia"][data-night]{background:linear-gradient(180deg,#2c2f66 0%,#22285a 50%,#171c44 100%)}
+.sky[data-w="nublado"][data-night]{background:linear-gradient(180deg,#3d4070 0%,#2c3160 55%,#1d2248 100%)}
+#rain{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .8s}
+.sky[data-w="lluvia"] #rain{opacity:1}
+.sun{position:absolute;top:150px;right:12%;width:120px;height:120px;border-radius:50%;opacity:0;transition:opacity 1s;
+  background:radial-gradient(circle,#fffbe6 0 30%,#ffe27a 46%,rgba(255,210,90,.0) 70%)}
+.sun::before{content:"";position:absolute;inset:-90px;border-radius:50%;
+  background:repeating-conic-gradient(rgba(255,240,180,.22) 0 6deg,transparent 6deg 20deg);
+  -webkit-mask:radial-gradient(circle,#000 20%,transparent 68%);mask:radial-gradient(circle,#000 20%,transparent 68%)}
+.sun::after{content:"";position:absolute;inset:-60px;border-radius:50%;background:radial-gradient(circle,rgba(255,236,160,.45),transparent 65%)}
+.sky[data-w="soleado"] .sun{opacity:1}
+.sky[data-w="lluvia"] .sun,.sky[data-w="nublado"] .sun{opacity:0}
+.sky[data-w="soleado"][data-night] .sun{background:radial-gradient(circle,#f4f1ff 0 34%,rgba(220,220,255,.0) 62%);width:90px;height:90px}
+.sky[data-w="soleado"][data-night] .sun::before{display:none}
+.sky[data-w="soleado"][data-night] .sun::after{background:radial-gradient(circle,rgba(200,200,255,.25),transparent 65%)}
+.stars{position:absolute;inset:0;opacity:0;transition:opacity 1s;
+  background-image:radial-gradient(1.5px 1.5px at 12% 18%,#fff,transparent),radial-gradient(1px 1px at 30% 8%,#fff,transparent),radial-gradient(1.5px 1.5px at 55% 22%,#fff,transparent),
+  radial-gradient(1px 1px at 72% 12%,#fff,transparent),radial-gradient(1.2px 1.2px at 88% 30%,#fff,transparent),radial-gradient(1px 1px at 20% 40%,#fff,transparent),radial-gradient(1.3px 1.3px at 64% 38%,#fff,transparent)}
+.sky[data-w="soleado"][data-night] .stars{opacity:.9}
+.cloud{position:absolute;border-radius:50%;filter:blur(28px);opacity:0;transition:opacity 1s}
+.cloud.c1{width:70vw;height:190px;top:40px;left:-20vw;background:rgba(220,220,245,.42)}
+.cloud.c2{width:60vw;height:160px;top:170px;right:-18vw;background:rgba(200,205,240,.34)}
+.cloud.c3{width:80vw;height:220px;top:320px;left:5vw;background:rgba(180,185,230,.22)}
+.sky[data-w="lluvia"] .cloud{opacity:1} .sky[data-w="nublado"] .cloud{opacity:1}
+.sky[data-w="soleado"] .cloud.c2{opacity:.35}
+.hills{position:absolute;left:0;right:0;top:min(560px,62vh);height:220px}
+.hills svg{width:100%;height:100%;display:block}
+@media (prefers-reduced-motion:no-preference){
+  .cloud.c1{animation:drift 48s ease-in-out infinite alternate}
+  .cloud.c2{animation:drift 62s ease-in-out infinite alternate-reverse}
+  .cloud.c3{animation:drift 75s ease-in-out infinite alternate}
+  .sun::before{animation:spin 90s linear infinite}
+  .sun::after{animation:glow 6s ease-in-out infinite}
+  @keyframes drift{to{transform:translateX(18vw)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes glow{50%{transform:scale(1.12);opacity:.8}}
+}
+
+/* ---- Contenido ---- */
+.wrap{position:relative;z-index:1;max-width:680px;margin:0 auto;padding-block:20px 48px;
+  padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:16px}
+.now{padding:40px 6px 110px;min-height:min(440px,58vh);display:flex;flex-direction:column;justify-content:flex-end}
+.brand-big{font-size:clamp(72px,22vw,120px);font-weight:300;line-height:.9;margin:0;letter-spacing:-.04em}
+.slogan{font-size:22px;font-weight:600;margin:10px 0 0}
+.school{margin:6px 0 0;color:var(--dim)}
+.skypick{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;font-size:13px;color:var(--dim)}
+.skypick label{position:relative;cursor:pointer}
+.skypick input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.skypick b{display:block;font-weight:600;padding:5px 12px;border-radius:99px;border:1px solid var(--edge);color:var(--dim)}
+.skypick input:checked + b{background:rgba(255,255,255,.2);color:var(--ink)}
+.skypick input:focus-visible + b{outline:2px solid #fff;outline-offset:2px}
+.place{display:flex;align-items:center;gap:10px;font-size:28px;font-weight:600}
+.place svg{width:24px;height:24px}
+.temp{font-size:clamp(96px,28vw,140px);font-weight:300;line-height:1;margin:26px 0 4px;letter-spacing:-.04em}
+.cond{font-size:30px;font-weight:600;margin:0}
+.minmax{margin:auto 0 0;padding-top:40px;font-size:19px;font-weight:500}
+.desc{margin:4px 0 0;font-size:18px;font-weight:500}
+.updated{margin:8px 0 0;font-size:13px;color:var(--dim)}
+
+.glass{background:var(--glass);border:1px solid var(--edge);border-radius:26px;padding:18px;
+  -webkit-backdrop-filter:blur(18px) saturate(1.2);backdrop-filter:blur(18px) saturate(1.2)}
+.alert{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center}
+.alert .ico{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--glass-2)}
+.alert .ico svg{width:26px;height:26px}
+.alert b{display:block;font-size:17px}
+.alert span{color:var(--dim);font-size:15px}
+
+.ready{display:flex;flex-direction:column;gap:10px}
+.ready-top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-size:15px;color:var(--dim);margin:0}
+.brand strong{color:var(--ink);font-size:22px;font-weight:700;letter-spacing:.01em;margin-right:6px}
+.pct{font-size:44px;font-weight:300;line-height:1;font-variant-numeric:tabular-nums}
+.bar{height:12px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#60c5f6,#a5e8ff)}
+.ready p{margin:0;color:var(--dim);font-size:15px}
+
+.wx-edit summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;font-weight:600}
+.wx-edit summary::-webkit-details-marker{display:none}
+.wx-edit summary span{color:var(--dim);font-weight:400;font-size:14px}
+.wx-form{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.wx-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+
+.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:5px;border-radius:20px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:#2a2f63}
+.tabs a{display:flex;flex-direction:column;align-items:center;gap:2px;text-decoration:none;color:var(--dim);font-size:13px;font-weight:600;padding:8px 2px;border-radius:15px}
+.tabs a svg{width:22px;height:22px}
+.tabs a[aria-current="page"]{background:rgba(255,255,255,.2);color:var(--ink)}
+a:focus-visible,button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid #fff;outline-offset:2px}
+
+h2{font-size:22px;font-weight:600;margin:0;line-height:1.2;text-wrap:balance}
+.intro{margin:4px 0 0;color:var(--dim);font-size:15px}
+.view{display:flex;flex-direction:column;gap:16px}
+.view[hidden]{display:none!important}
+
+.q{display:flex;flex-direction:column;gap:10px;border:0;margin:0;padding:0;min-width:0}
+.q legend,.q > .qt{display:flex;gap:10px;align-items:center;font-size:17px;font-weight:600;padding:0;margin-bottom:2px}
+.q .k{flex:none;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.2);display:grid;place-items:center;font-size:14px}
+.choice{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.choice.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:520px){.choice.three{grid-template-columns:1fr}}
+.pick{position:relative}
+.pick input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.pick span{display:flex;flex-direction:column;gap:2px;height:100%;border-radius:18px;padding:12px 14px;background:var(--glass-2);border:1.5px solid transparent}
+.pick b{font-size:16px;font-weight:600;line-height:1.2}
+.pick small{font-size:13.5px;color:var(--dim)}
+.pick input:checked + span{border-color:#fff;background:rgba(255,255,255,.24)}
+.pick input:focus-visible + span{outline:2px solid #fff;outline-offset:2px}
+.pick .dot{width:12px;height:12px;border-radius:50%;margin-bottom:4px}
+select,textarea,input[type=text],input[type=number]{font:inherit;color:var(--ink);background:rgba(255,255,255,.1);border:1.5px solid var(--edge);border-radius:14px;padding:11px 13px;width:100%}
+select option{color:#1d2148}
+input::placeholder,textarea::placeholder{color:var(--faint)}
+textarea{min-height:70px;resize:vertical}
+label.mini{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--dim)}
+.btn{font:inherit;font-weight:700;font-size:16px;border:0;border-radius:16px;padding:14px 18px;background:#fff;color:#262c63;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.small{font-size:14px;padding:7px 12px;border-radius:12px;background:rgba(255,255,255,.16);color:var(--ink);font-weight:600}
+.msg{margin:0;padding:11px 14px;border-radius:14px;font-weight:600;font-size:15px}
+.msg.ok{background:rgba(110,231,160,.2);color:#d7ffe7} .msg.err{background:rgba(255,122,122,.22);color:#ffe0e0}
+
+.keys{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13.5px;color:var(--dim)}
+.keys i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.area h3{font-size:15px;font-weight:600;color:var(--dim);margin:0 0 8px}
+.zgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.zone{border-radius:16px;padding:11px 12px;display:grid;grid-template-columns:10px minmax(0,1fr);gap:2px 10px;align-items:start;background:var(--glass-2)}
+.zone i{width:10px;height:10px;border-radius:50%;margin-top:6px;background:transparent;border:1.5px dashed var(--gray)}
+.zone b{font-size:14px;font-weight:600;line-height:1.3;overflow-wrap:anywhere}
+.zone small{grid-column:2;font-size:12.5px;color:var(--dim)}
+.zone.rojo{background:rgba(255,122,122,.2)} .zone.rojo i{background:var(--red);border:0}
+.zone.amarillo{background:rgba(255,209,102,.18)} .zone.amarillo i{background:var(--amber);border:0}
+.zone.verde{background:rgba(110,231,160,.16)} .zone.verde i{background:var(--green);border:0}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.fact{border-radius:16px;padding:12px;background:var(--glass-2);min-width:0}
+.fact strong{display:block;font-size:26px;font-weight:400;font-variant-numeric:tabular-nums;line-height:1.1}
+.fact span{font-size:12.5px;color:var(--dim)}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{font:inherit;font-size:14px;font-weight:600;padding:6px 13px;border-radius:99px;border:1.5px solid var(--edge);background:transparent;color:var(--ink);cursor:pointer}
+.chips button[aria-pressed="true"]{background:#fff;border-color:#fff;color:#262c63}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.item{display:grid;grid-template-columns:10px minmax(0,1fr);gap:14px;padding:14px 0;border-top:1px solid var(--edge)}
+.item:first-child{border-top:0}
+.item > i{width:10px;height:10px;border-radius:50%;margin-top:8px;background:var(--red)}
+.item[data-estado="reparacion"] > i{background:var(--amber)} .item[data-estado="reparada"] > i{background:var(--green)}
+.item .zona{font-weight:600;font-size:17px;line-height:1.25}
+.item .meta{font-size:14px;color:var(--dim)}
+.item .nota{margin:6px 0 0;overflow-wrap:anywhere}
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.badge{font-size:12.5px;font-weight:600;padding:2px 10px;border-radius:99px;background:var(--glass-2)}
+.badge.pendiente{background:rgba(255,122,122,.25)} .badge.reparacion{background:rgba(255,209,102,.25)} .badge.reparada{background:rgba(110,231,160,.22)}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+
+.rank{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.rank li{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px;border-radius:16px;background:var(--glass-2)}
+.rank li:first-child{background:rgba(255,209,102,.22)}
+.pos{font-size:24px;font-weight:300;text-align:center}
+.rank .g{font-weight:600;overflow-wrap:anywhere}
+.rank .d{font-size:13px;color:var(--dim)}
+.pts{font-size:24px;font-weight:400;text-align:right;font-variant-numeric:tabular-nums;line-height:1}
+.pts small{display:block;font-size:12px;color:var(--dim)}
+.howto{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (max-width:520px){.howto,.facts{grid-template-columns:1fr}}
+.howto div{padding:12px;border-radius:16px;background:var(--glass-2);font-size:14px;color:var(--dim)}
+.howto strong{font-size:24px;font-weight:400;display:block;color:var(--ink)}
+.empty{border:1.5px dashed var(--edge);border-radius:16px;padding:16px;color:var(--dim)}
+.empty b{color:var(--ink)}
+.small-note{font-size:13.5px;color:var(--dim);margin:0}
+footer{font-size:13px;color:var(--dim);text-align:center}
+.photo{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;border:1.5px dashed rgba(255,255,255,.45);border-radius:18px;padding:16px;cursor:pointer;font-weight:600;background:rgba(255,255,255,.06)}
+.photo input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.photo:focus-within{outline:2px solid #fff;outline-offset:2px}
+.photo.off{opacity:.5;cursor:not-allowed}
+.ph{display:block;width:100%;max-width:100%;max-height:260px;object-fit:cover;border-radius:14px;margin-top:8px;background:rgba(255,255,255,.08)}
+.badge.falso{background:rgba(255,255,255,.08);text-decoration:line-through}
+.item[data-estado="falso"]{opacity:.55}
+.item[data-estado="falso"] > i{background:var(--gray)}
+</style>
+</head>
+<body>
+
+<div class="sky" id="sky" data-w="lluvia" aria-hidden="true">
+  <div class="stars"></div>
+  <div class="sun"></div>
+  <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+  <div class="hills"><svg viewBox="0 0 400 220" preserveAspectRatio="none">
+    <path d="M0 90 C60 60 110 70 160 88 C210 104 250 64 310 70 C350 74 380 90 400 84 V220 H0Z" fill="rgba(20,28,70,.35)"/>
+    <path d="M0 130 C70 110 120 126 190 120 C260 114 300 100 400 118 V220 H0Z" fill="rgba(18,30,64,.45)"/>
+  </svg></div>
+  <canvas id="rain"></canvas>
+</div>
+
+<div class="wrap">
+  <header class="now">
+    <h1 class="brand-big">Cauce</h1>
+    <p class="slogan">Que el agua corra por donde debe.</p>
+    <p class="school">Brigadas del agua del CBTIS 165, Coatepec.</p>
+  </header>
+
+  <section class="glass ready" aria-labelledby="h-ready">
+    <div class="ready-top">
+      <p class="brand" id="h-ready"><strong>Cauce</strong>Listo para la lluvia</p>
+      <span class="pct" id="pct">0%</span>
+    </div>
+    <div class="bar"><i id="levelBar"></i></div>
+    <p id="pctText">de las zonas revisadas y sin problemas abiertos.</p>
+  </section>
+
+  <nav class="glass tabs" aria-label="Pantallas">
+    <a href="#registrar" id="tab-registrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Registrar</a>
+    <a href="#semaforo" id="tab-semaforo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="8" y="2.5" width="8" height="19" rx="3"/><circle cx="12" cy="7" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg>Semáforo</a>
+    <a href="#reportes" id="tab-reportes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>Reportes</a>
+    <a href="#grupos" id="tab-grupos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M12 13v4M8 20h8M7 6H4a3 3 0 0 0 3 3M17 6h3a3 3 0 0 1-3 3"/></svg>Grupos</a>
+  </nav>
+
+  <!-- REGISTRAR -->
+  <section id="view-registrar" class="glass view" aria-labelledby="h-reg">
+    <div><h2 id="h-reg">Revisa una zona</h2><p class="intro">Si todo está bien también regístralo: así se sabe que la zona ya se revisó.</p></div>
+    <form id="form" novalidate class="view">
+      <div class="q"><div class="qt"><span class="k">1</span>¿De qué grupo eres?</div>
+        <div class="choice">
+          <label class="mini" for="semestre">Semestre<select id="semestre"></select></label>
+          <label class="mini" for="carrera">Carrera<select id="carrera"></select></label>
+        </div>
+      </div>
+      <fieldset class="q"><legend><span class="k">2</span>¿Dónde estás?</legend>
+        <div class="choice">
+          <label class="pick"><input type="radio" name="lugar" id="lugar-dentro" value="dentro" checked><span><b>Dentro de la escuela</b><small>Baños, patios, edificios</small></span></label>
+          <label class="pick"><input type="radio" name="lugar" id="lugar-fuera" value="fuera"><span><b>Afuera, cerca</b><small>Calles y esquinas de alrededor</small></span></label>
+        </div>
+        <input type="text" id="lugarTxt" maxlength="60" list="zonasList" autocomplete="off" aria-label="Escribe el lugar">
+        <datalist id="zonasList"></datalist>
+        <p class="small-note" id="lugarHint"></p>
+      </fieldset>
+      <fieldset class="q"><legend><span class="k">3</span>¿Hay algún problema?</legend>
+        <div class="choice">
+          <label class="pick"><input type="radio" name="accion" id="acc-problema" value="problema" checked><span><b>Sí, hay un problema</b><small>Fuga, inundación, coladera o basura</small></span></label>
+          <label class="pick"><input type="radio" name="accion" id="acc-revision" value="revision"><span><b>No, todo está bien</b><small>Zona limpia y sin fugas</small></span></label>
+        </div>
+      </fieldset>
+      <div id="problemaFields" class="view">
+        <fieldset class="q"><legend><span class="k">4</span>¿Qué encontraste?</legend><div class="choice" id="catGrid"></div></fieldset>
+        <fieldset class="q"><legend id="subLegend">¿Cómo se ve?</legend><div class="choice three" id="subGrid"></div></fieldset>
+        <div class="q" id="fotoQ"><div class="qt"><span class="k">5</span>Foto del problema</div>
+          <label class="photo" for="foto"><input type="file" id="foto" accept="image/*" capture="environment"><span id="fotoTxt">Tomar o elegir foto</span></label>
+          <img id="fotoPrev" class="ph" hidden alt="Vista previa de la foto">
+          <p class="small-note" id="fotoNote">La foto es obligatoria: así sabemos que el problema es real.</p>
+        </div>
+      </div>
+      <label class="mini" for="nota">Algo más (opcional)
+        <textarea id="nota" maxlength="200" placeholder="Ej. se encharca cada vez que llueve fuerte"></textarea>
+      </label>
+      <button class="btn" id="send" type="submit">Reportar problema</button>
+      <p class="msg" id="formMsg" role="status" hidden></p>
+    </form>
+  </section>
+
+  <!-- SEMÁFORO -->
+  <section id="view-semaforo" class="glass view" hidden aria-labelledby="h-sem">
+    <div><h2 id="h-sem">¿Cómo está cada zona?</h2><p class="intro">El color cambia con lo que registran las brigadas.</p></div>
+    <div class="keys"><span><i style="background:var(--red)"></i>Problema grave</span><span><i style="background:var(--amber)"></i>En atención</span><span><i style="background:var(--green)"></i>Revisada y bien</span><span><i style="border:1.5px dashed var(--gray)"></i>Falta revisar</span></div>
+    <div class="area"><h3>Dentro de la escuela</h3><div class="zgrid" id="zDentro"></div></div>
+    <div class="area"><h3>Afuera, cerca de la escuela</h3><div class="zgrid" id="zFuera"></div></div>
+    <div class="facts">
+      <div class="fact"><strong id="kLitros">0</strong><span>litros al día perdidos en fugas (estimado)</span></div>
+      <div class="fact"><strong id="kActivos">0</strong><span>problemas sin resolver</span></div>
+      <div class="fact"><strong id="kRev">0</strong><span>revisiones esta semana</span></div>
+    </div>
+  </section>
+
+  <!-- REPORTES -->
+  <section id="view-reportes" class="glass view" hidden aria-labelledby="h-rpt">
+    <div><h2 id="h-rpt">Problemas reportados</h2><p class="intro">Mantenimiento marca cada uno cuando lo atiende y cuando queda resuelto.</p></div>
+    <div class="chips" id="filters">
+      <button type="button" data-f="activas" aria-pressed="true">Sin resolver</button>
+      <button type="button" data-f="reparada" aria-pressed="false">Resueltos</button>
+      <button type="button" data-f="todas" aria-pressed="false">Todos</button>
+    </div>
+    <div class="chips" id="catFilters">
+      <button type="button" data-c="todas" aria-pressed="true">Todo</button>
+      <button type="button" data-c="fuga" aria-pressed="false">Fugas</button>
+      <button type="button" data-c="inundacion" aria-pressed="false">Inundaciones</button>
+      <button type="button" data-c="alcantarilla" aria-pressed="false">Coladeras</button>
+      <button type="button" data-c="basura" aria-pressed="false">Basura</button>
+      <button type="button" data-c="fuera" aria-pressed="false">Afuera</button>
+    </div>
+    <ul class="list" id="list"></ul>
+    <p class="small-note">Cada reporte queda registrado con el celular que lo hizo. Los reportes falsos le quitan 20 puntos al grupo.</p>
+    <p class="small-note">Los litros son estimaciones. Una gotera pequeña tira unos 3 litros al día (SAPAM) y una más rápida puede llegar a 30.</p>
+  </section>
+
+  <!-- GRUPOS -->
+  <section id="view-grupos" class="glass view" hidden aria-labelledby="h-grp">
+    <div><h2 id="h-grp">Ranking de brigadas</h2><p class="intro">Gana el grupo que más cuida el agua.</p></div>
+    <ol class="rank" id="rank"></ol>
+    <div class="howto">
+      <div><strong>+5</strong>por revisar una zona que está bien</div>
+      <div><strong>+10</strong>por reportar un problema</div>
+      <div><strong>+15</strong>extra cuando se resuelve</div>
+      <div><strong>−20</strong>si el reporte resulta falso</div>
+    </div>
+  </section>
+
+  <div class="skypick" role="radiogroup" aria-label="Fondo">
+    <span>Fondo</span>
+    <label><input type="radio" name="wx" id="wx-lluvia" value="lluvia"><b>Lluvia</b></label>
+    <label><input type="radio" name="wx" id="wx-nublado" value="nublado"><b>Nublado</b></label>
+    <label><input type="radio" name="wx" id="wx-soleado" value="soleado"><b>Sol</b></label>
+  </div>
+
+  <details class="glass wx-edit" id="adminBox">
+    <summary>Acceso para maestros <span id="adminState">Solo personal autorizado</span></summary>
+    <form class="wx-form" id="adminForm" novalidate>
+      <label class="mini" for="adEmail">Correo<input type="text" id="adEmail" autocomplete="username" inputmode="email"></label>
+      <label class="mini" for="adPass">Contraseña<input type="password" id="adPass" autocomplete="current-password" style="font:inherit;color:var(--ink);background:rgba(255,255,255,.1);border:1.5px solid var(--edge);border-radius:14px;padding:11px 13px;width:100%"></label>
+      <button class="btn" type="submit" id="adGo">Entrar</button>
+      <p class="msg" id="adMsg" role="status" hidden></p>
+    </form>
+    <div class="wx-form" id="adminIn" hidden>
+      <p style="margin:0">Entraste como <b id="adWho"></b>. <span id="adRole"></span></p>
+      <p class="small-note">Tu ID de usuario: <code id="adId" style="user-select:all"></code></p>
+      <button class="btn small" type="button" id="adOut">Salir</button>
+    </div>
+  </details>
+
+  <footer id="status">Conectando con los registros…</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+/* ====== CONFIGURACIÓN: pega aquí los datos de tu proyecto de Supabase (ver README) ====== */
+const SUPABASE_URL="https://cetctywjzmqwovhvdfhv.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNldGN0eXdqem1xd292aHZkZmh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMzMyNTcsImV4cCI6MjEwODgwOTI1N30.OYA7WOJnKzCERF27PBJlLAHPhADyiK3oIlNQ2TXXj3g";
+/* ===================================================================================== */
+const $=id=>document.getElementById(id);
+const fmt=n=>n.toLocaleString("es-MX");
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------- Cielo ---------- */
+const sky=$("sky");
+const COND={lluvia:"Lluvia",nublado:"Nublado",soleado:"Soleado"};
+let weather={estado:"lluvia"};
+let rojos=0;
+function isNight(){const h=new Date().getHours(); return h>=19||h<6;}
+function applyWeather(){
+  const w=weather.estado in COND?weather.estado:"nublado";
+  sky.dataset.w=w; isNight()?sky.setAttribute("data-night",""):sky.removeAttribute("data-night");
+  const r=$("wx-"+w); if(r) r.checked=true;
+  rainLoop();
+}
+
+/* Lluvia en canvas */
+const cv=$("rain"), ctx=cv.getContext("2d"); let drops=[], running=false, W=0, H=0;
+function sizeRain(){ const d=Math.min(devicePixelRatio||1,2); W=innerWidth; H=innerHeight; cv.width=W*d; cv.height=H*d; ctx.setTransform(d,0,0,d,0,0);
+  const n=Math.round(W*H/5200); drops=Array.from({length:n},()=>newDrop(true)); }
+function newDrop(any){ const z=Math.random(); return {x:Math.random()*(W+100)-50,y:any?Math.random()*H:-20-Math.random()*H*.3,l:10+z*18,v:9+z*12,o:.18+z*.42,w:.8+z*1.1}; }
+function frame(){
+  if(!running) return;
+  ctx.clearRect(0,0,W,H); ctx.lineCap="round";
+  for(const d of drops){
+    ctx.strokeStyle=`rgba(220,230,255,${d.o})`; ctx.lineWidth=d.w;
+    ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x-d.l*.18,d.y+d.l); ctx.stroke();
+    d.y+=d.v; d.x-=d.v*.18;
+    if(d.y>H){ Object.assign(d,newDrop(false)); }
+  }
+  requestAnimationFrame(frame);
+}
+function drawStatic(){ ctx.clearRect(0,0,W,H); for(const d of drops){ ctx.strokeStyle=`rgba(220,230,255,${d.o})`; ctx.lineWidth=d.w; ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x-d.l*.18,d.y+d.l); ctx.stroke(); } }
+function rainLoop(){
+  const on=sky.dataset.w==="lluvia";
+  if(!on){ running=false; ctx.clearRect(0,0,W,H); return; }
+  if(reduce){ drawStatic(); return; }
+  if(!running){ running=true; requestAnimationFrame(frame); }
+}
+addEventListener("resize",()=>{sizeRain(); rainLoop();});
+document.addEventListener("visibilitychange",()=>{ if(document.hidden) running=false; else rainLoop(); });
+sizeRain(); applyWeather();
+
+/* ---------- Datos de brigadas ---------- */
+const ZONAS={
+  dentro:["Baño de mujeres","Baño de hombres",
+    "Cafetería de mesas","Cafetería de maestros",
+    "Laboratorio de Química","Laboratorio de Cómputo 1","Laboratorio de Cómputo 2","Laboratorio de Cómputo 3",
+    "Servicios Escolares, planta baja","Servicios Escolares, planta alta (Biblioteca)",
+    "Edificio de 1° y 2°, planta baja","Edificio de 1° y 2°, planta alta",
+    "Edificio de 3° y 4°, planta baja","Edificio de 3° y 4°, planta alta",
+    "Salones extra, primera fila (5° y 6°)","Salones extra, segunda fila (mixtos)",
+    "Cancha de básquetbol","Cancha de voleibol","Campo","Áreas verdes","Estacionamiento"],
+  fuera:[]
+};
+const CATS={
+  fuga:{name:"Fuga de agua",desc:"Llave, baño o tubería",color:"#7dd3fc",subLegend:"¿Cómo es la fuga?",sub:[
+    {id:"goteo",name:"Gotea",desc:"De 3 a 30 litros al día",litros:15,nivel:1},
+    {id:"chorro",name:"Chorro que no para",desc:"Unos 300 litros al día",litros:300,nivel:2},
+    {id:"tubo",name:"Tubería o tinaco",desc:"Unos 1,000 litros al día",litros:1000,nivel:3}]},
+  inundacion:{name:"Inundación",desc:"Agua acumulada al llover",color:"#a5b4fc",subLegend:"¿Qué tan grave es?",sub:[
+    {id:"charco",name:"Charco grande",desc:"Se puede rodear",nivel:1},
+    {id:"tobillo",name:"Hasta el tobillo",desc:"Mojas los zapatos al pasar",nivel:2},
+    {id:"nopasa",name:"No se puede pasar",desc:"Bloquea el paso o entra a salones",nivel:3}]},
+  alcantarilla:{name:"Coladera tapada",desc:"Basura, hojas o lodo",color:"#fcd34d",subLegend:"¿Cómo está la coladera?",sub:[
+    {id:"parcial",name:"Con basura",desc:"Todavía drena, pero lento",nivel:1},
+    {id:"tapada",name:"Tapada por completo",desc:"El agua no se va",nivel:2},
+    {id:"rota",name:"Rota o sin tapa",desc:"Peligro para quien pasa",nivel:3}]},
+  basura:{name:"Basura acumulada",desc:"Bolsas, envases o tiradero",color:"#86efac",subLegend:"¿Cuánta basura hay?",sub:[
+    {id:"poca",name:"Un poco",desc:"Envases o papeles sueltos",nivel:1},
+    {id:"bolsas",name:"Bolsas o montón",desc:"Se nota desde lejos",nivel:2},
+    {id:"tiradero",name:"Tiradero",desc:"Mucha basura junta o cerca de coladeras",nivel:3}]}
+};
+const NIVEL={1:"Leve",2:"Moderado",3:"Grave"};
+const ESTADOS={pendiente:"Sin resolver",reparacion:"En atención",reparada:"Resuelto",falso:"Reporte falso"};
+const SEMANA=7*864e5;
+const val=n=>{const el=document.querySelector(`input[name="${n}"]:checked`); return el?el.value:null;};
+
+function pick(name,id,value,title,desc,checked,dot){
+  const l=document.createElement("label"); l.className="pick";
+  l.innerHTML=`<input type="radio" name="${name}" id="${id}" value="${value}" ${checked?"checked":""}><span>${dot?`<i class="dot" style="background:${dot}"></i>`:""}<b></b><small></small></span>`;
+  l.querySelector("b").textContent=title; l.querySelector("small").textContent=desc; return l;
+}
+Object.entries(CATS).forEach(([k,c],i)=>$("catGrid").appendChild(pick("cat","cat-"+k,k,c.name,c.desc,i===0,c.color)));
+function fillSub(){ const c=CATS[val("cat")]; $("subLegend").textContent=c.subLegend; const g=$("subGrid"); g.textContent="";
+  c.sub.forEach((s,i)=>g.appendChild(pick("sub","sub-"+s.id,s.id,s.name,s.desc,i===0))); }
+function fillZonas(){ const fuera=val("lugar")==="fuera"; const dl=$("zonasList"); dl.textContent="";
+  if(!fuera) ZONAS.dentro.forEach(n=>{const o=document.createElement("option"); o.value=n; dl.appendChild(o);});
+  $("lugarTxt").placeholder=fuera?"Ej. Esquina de la papelería frente a la salida":"Ej. Baño de mujeres, junto a los lavabos";
+  $("lugarHint").textContent=fuera?"Escribe una calle, esquina o negocio que todos reconozcan.":"Escribe el lugar o toca una de las sugerencias que aparecen."; }
+function syncMode(){ const p=val("accion")==="problema"; $("problemaFields").hidden=!p; $("send").textContent=p?"Reportar problema":"Guardar revisión"; }
+$("catGrid").addEventListener("change",fillSub);
+document.querySelectorAll('input[name="lugar"]').forEach(r=>r.addEventListener("change",fillZonas));
+document.querySelectorAll('input[name="accion"]').forEach(r=>r.addEventListener("change",syncMode));
+fillSub(); fillZonas(); syncMode();
+const SEMESTRES=["1°","3°","5°"];
+const CARRERAS=["Administración de Recursos Humanos","Programación","Ventas","Electrónica","Laboratorista Químico",
+  "Soporte y Mantenimiento de Cómputo","Inteligencia Artificial","Ciberseguridad"];
+function fillSel(id,items,ph){const s=$(id); s.textContent=""; [["",ph],...items.map(x=>[x,x])].forEach(([v,t])=>{const o=document.createElement("option"); o.value=v; o.textContent=t; s.appendChild(o);});}
+fillSel("semestre",SEMESTRES,"Elige"); fillSel("carrera",CARRERAS,"Elige tu carrera");
+try{const g=JSON.parse(localStorage.getItem("cauce-grupo2")||"null"); if(g){ if(SEMESTRES.includes(g.s)) $("semestre").value=g.s; if(CARRERAS.includes(g.c)) $("carrera").value=g.c; }}catch(e){}
+
+const VIEWS=["registrar","semaforo","reportes","grupos"];
+function route(){ const h=location.hash.slice(1); const v=VIEWS.includes(h)?h:"registrar";
+  VIEWS.forEach(x=>{$("view-"+x).hidden=x!==v; const t=$("tab-"+x); x===v?t.setAttribute("aria-current","page"):t.removeAttribute("aria-current");}); }
+addEventListener("hashchange",route); route();
+
+let db=null,sb=null,user=null,assets=null,myId=null,isEditor=false,canWrite=true,regs=[],filtro="activas",catF="todas",shownPct=0,names={};
+
+/* ---------- Filtros contra bromas ---------- */
+const norm=t=>(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+  .replace(/[@4]/g,"a").replace(/3/g,"e").replace(/[1!|]/g,"i").replace(/0/g,"o").replace(/[5$]/g,"s").replace(/(.)\1{2,}/g,"$1$1");
+const MALAS_RAIZ=["pendej","verga","chinga","culer","cabron","mamad","mamon","pinche","mierda","punet","estupid","imbecil","idiota","marica","porno","huevon","hdp","ptm","nmms"];
+const MALAS_PALABRA=["puto","puta","putos","putas","culo","pene","joto","jotos","sexo","caca","pedo","teta","tetas","nalga","nalgas","alv","vrg","wtf"];
+function textoProblema(t){
+  if(!t) return null;
+  const n=norm(t), comp=n.replace(/[^a-zñ]/g,"");
+  if(/(https?:|www\.|\.com|\.mx|@)/i.test(t)) return "No se permiten enlaces ni correos.";
+  if(/\d{7,}/.test(t.replace(/\s/g,""))) return "No se permiten números de teléfono.";
+  if(MALAS_RAIZ.some(w=>comp.includes(w))) return "Ese texto tiene palabras que no se permiten. Escríbelo con respeto.";
+  if(MALAS_PALABRA.some(w=>new RegExp("(^|[^a-zñ])"+w+"([^a-zñ]|$)").test(n))) return "Ese texto tiene palabras que no se permiten. Escríbelo con respeto.";
+  if(/(ja|je|ji|js|xd){3,}/.test(comp)||/(^|\s)x+d+(\s|$)/.test(n)) return "Esto es para reportes serios, no para bromas.";
+  return null;
+}
+async function compress(file){
+  try{ const bmp=await createImageBitmap(file); const m=1280,k=Math.min(1,m/Math.max(bmp.width,bmp.height));
+    const c=document.createElement("canvas"); c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k);
+    c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
+    return await new Promise(r=>c.toBlob(b=>r(b||file),"image/jpeg",.8)); }catch(e){ return file; }
+}
+$("foto").addEventListener("change",()=>{ const f=$("foto").files[0]; const img=$("fotoPrev");
+  if(!f){ img.hidden=true; $("fotoTxt").textContent="Tomar o elegir foto"; return; }
+  if(!/^image\//.test(f.type)){ $("foto").value=""; showMsg("formMsg","Solo se pueden subir fotos.",false); return; }
+  img.src=URL.createObjectURL(f); img.hidden=false; $("fotoTxt").textContent="Cambiar foto"; });
+const catOf=r=>r.categoria||"fuga";
+const isProb=r=>(r.accion||"problema")==="problema";
+function setLevel(p){
+  const bar=$("levelBar");
+  if(reduce){ bar.style.width=p+"%"; $("pct").textContent=p+"%"; shownPct=p; return; }
+  const s=shownPct,t0=performance.now();
+  const st=t=>{const k=Math.min(1,(t-t0)/900),e=1-Math.pow(1-k,3),v=s+(p-s)*e; bar.style.width=v+"%"; $("pct").textContent=Math.round(v)+"%"; if(k<1) requestAnimationFrame(st); else shownPct=p;};
+  requestAnimationFrame(st);
+}
+function zoneStatus(lugar,zona,now){
+  const here=regs.filter(r=>r.estado!=="falso"&&(r.lugar||"dentro")===lugar&&r.zona===zona);
+  const open=here.filter(r=>isProb(r)&&r.estado!=="reparada"); const n=open.length,s=n>1?"s":"";
+  if(open.some(r=>(r.nivel||1)>=3&&r.estado==="pendiente")) return ["rojo",`${n} problema${s}, grave`];
+  if(n) return ["amarillo",`${n} problema${s} abierto${s}`];
+  const rev=here.filter(r=>!isProb(r)).sort((a,b)=>b.creado-a.creado)[0];
+  if(rev&&now-rev.creado<SEMANA){const d=Math.floor((now-rev.creado)/864e5); return ["verde",d===0?"Revisada hoy":`Revisada hace ${d} día${d>1?"s":""}`];}
+  return ["gris","Falta revisar"];
+}
+function render(){
+  const now=Date.now(), validos=regs.filter(r=>r.estado!=="falso"), probs=regs.filter(isProb), abiertos=validos.filter(isProb).filter(r=>r.estado!=="reparada");
+  let verdes=0,total=0; rojos=0;
+  ["dentro","fuera"].forEach(l=>{
+    const extra=[...new Set(validos.filter(r=>(r.lugar||"dentro")===l).map(r=>r.zona))].filter(z=>!ZONAS[l].includes(z));
+    const box=$(l==="dentro"?"zDentro":"zFuera"); box.textContent="";
+    if(l==="fuera"&&!extra.length){ box.innerHTML='<div class="empty" style="grid-column:1/-1">Aquí aparecerán los lugares de afuera que reporten las brigadas.</div>'; return; }
+    [...ZONAS[l],...extra].forEach(z=>{ const [c,txt]=zoneStatus(l,z,now); total++; if(c==="verde") verdes++; if(c==="rojo") rojos++;
+      const d=document.createElement("div"); d.className="zone "+c; d.innerHTML="<i></i><b></b><small></small>";
+      d.querySelector("b").textContent=z; d.querySelector("small").textContent=txt; box.appendChild(d); });
+  });
+  const pct=total?Math.round(verdes/total*100):0; setLevel(pct);
+  $("pctText").textContent=`${verdes} de ${total} zonas revisadas esta semana y sin problemas abiertos.`;
+  $("kLitros").textContent=fmt(abiertos.filter(r=>catOf(r)==="fuga").reduce((s,r)=>s+(r.litros||0),0));
+  $("kActivos").textContent=fmt(abiertos.length);
+  $("kRev").textContent=fmt(validos.filter(r=>!isProb(r)&&now-r.creado<SEMANA).length);
+  applyWeather();
+
+  const G={};
+  const contadas=new Set();
+  [...regs].sort((a,b)=>a.creado-b.creado).forEach(r=>{const g=(r.grupo||"").trim(); if(!g) return; const e=G[g.toLowerCase()]||={name:g,pts:0,rev:0,rep:0,res:0,fal:0};
+    if(r.estado==="falso"){e.pts-=20;e.fal++; return;}
+    if(isProb(r)){e.pts+=10;e.rep++; if(r.estado==="reparada"){e.pts+=15;e.res++;}}
+    else { const key=g.toLowerCase()+"|"+r.lugar+"|"+r.zona+"|"+new Date(r.creado).toDateString(); if(contadas.has(key)) return; contadas.add(key); e.pts+=5;e.rev++; }});
+  const ranking=Object.values(G).sort((a,b)=>b.pts-a.pts);
+  const rk=$("rank"); rk.textContent="";
+  if(!ranking.length) rk.innerHTML=`<li class="empty" style="display:block;background:none"><b>Ningún grupo tiene puntos todavía.</b> El primer registro abre el ranking.</li>`;
+  ranking.forEach((e,i)=>{const li=document.createElement("li");
+    li.innerHTML=`<span class="pos">${i+1}</span><div style="min-width:0"><div class="g"></div><div class="d">${e.rev} revisiones, ${e.rep} reportes, ${e.res} resueltos${e.fal?`, ${e.fal} falso${e.fal>1?"s":""}`:""}</div></div><div class="pts">${fmt(e.pts)}<small>puntos</small></div>`;
+    li.querySelector(".g").textContent=e.name; rk.appendChild(li);});
+
+  const list=$("list"); list.textContent="";
+  let shown=probs.filter(r=>filtro==="todas"?(isEditor||r.estado!=="falso"):filtro==="reparada"?r.estado==="reparada":(r.estado==="pendiente"||r.estado==="reparacion"));
+  if(catF==="fuera") shown=shown.filter(r=>r.lugar==="fuera"); else if(catF!=="todas") shown=shown.filter(r=>catOf(r)===catF);
+  if(!shown.length){const li=document.createElement("li"); li.className="empty";
+    li.innerHTML=probs.length?"No hay problemas con estos filtros.":`<b>Todavía no hay problemas reportados.</b> En Registrar elige "Sí, hay un problema" cuando encuentres uno.`;
+    list.appendChild(li); return;}
+  shown.forEach(r=>{
+    const k=catOf(r),c=CATS[k],s=c.sub.find(x=>x.id===r.tipo);
+    const li=document.createElement("li"); li.className="item"; li.dataset.estado=r.estado;
+    li.innerHTML=`<i></i><div style="min-width:0"><div class="zona"></div><div class="meta"></div>
+      <div class="badges"><span class="badge cat"></span><span class="badge ${r.estado}">${ESTADOS[r.estado]||r.estado}</span></div>
+      <p class="nota" hidden></p><img class="ph" hidden loading="lazy"><div class="acts"></div></div>`;
+    li.querySelector(".zona").textContent=r.zona; li.querySelector(".badge.cat").textContent=c.name;
+    const extra=r.litros?`unos ${fmt(r.litros)} litros al día`:NIVEL[r.nivel||1];
+    li.querySelector(".meta").textContent=`${s?s.name:c.name}, ${extra}. ${r.lugar==="fuera"?"Afuera":"Dentro"}${r.grupo?", "+r.grupo:""}, ${new Date(r.creado).toLocaleString("es-MX",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}`;
+    if(r.nota){const p=li.querySelector(".nota"); p.hidden=false; p.textContent=r.nota;}
+    if(r.foto&&sb){const im=li.querySelector("img.ph"); im.alt="Foto del problema en "+r.zona; im.src=sb.storage.from("fotos").getPublicUrl(r.foto).data.publicUrl; im.hidden=false; im.onerror=()=>{im.hidden=true;};}
+    if(isEditor&&db){ const acts=li.querySelector(".acts");
+      const opts=r.estado==="pendiente"?[["reparacion","Marcar en atención"],["reparada","Marcar resuelto"],["falso","Es falso"]]
+        :r.estado==="reparacion"?[["reparada","Marcar resuelto"],["pendiente","Regresar a sin resolver"],["falso","Es falso"]]
+        :r.estado==="falso"?[["pendiente","No era falso"]]:[["pendiente","Reabrir"]];
+      opts.forEach(([e,txt])=>{const b=document.createElement("button"); b.type="button"; b.className="btn small"; b.textContent=txt;
+        b.addEventListener("click",async()=>{b.disabled=true; try{const {error}=await sb.from("registros").update({estado:e}).eq("id",r.id); if(error) throw error; await loadAll();}
+          catch(err){b.disabled=false; $("status").textContent="No se pudo cambiar el estado. Solo los maestros pueden hacerlo.";}});
+        acts.appendChild(b);}); }
+    list.appendChild(li);
+  });
+}
+function wire(id,attr,set){$(id).addEventListener("click",e=>{const b=e.target.closest("button"); if(!b) return; set(b.dataset[attr]);
+  [...$(id).children].forEach(x=>x.setAttribute("aria-pressed",x===b?"true":"false")); render();});}
+wire("filters","f",v=>filtro=v); wire("catFilters","c",v=>catF=v);
+render();
+
+function showMsg(el,t,ok){const m=$(el); m.hidden=false; m.textContent=t; m.className="msg "+(ok?"ok":"err");}
+$("form").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const sem=$("semestre").value, car=$("carrera").value; const grupo=sem&&car?`${sem} ${car}`:"";
+  const fuera=val("lugar")==="fuera"; let zona=$("lugarTxt").value.trim().replace(/\s+/g," ");
+  if(!fuera){ const igual=ZONAS.dentro.find(z=>norm(z)===norm(zona)); if(igual) zona=igual; }
+  if(!sem){showMsg("formMsg","Elige tu semestre para que tu grupo sume puntos.",false); $("semestre").focus(); return;}
+  if(!car){showMsg("formMsg","Elige tu carrera para que tu grupo sume puntos.",false); $("carrera").focus(); return;}
+  if(!zona){showMsg("formMsg","Escribe el lugar donde estás.",false); $("lugarTxt").focus(); return;}
+  if(zona.replace(/[^a-záéíóúñ]/gi,"").length<4){showMsg("formMsg","Escribe un lugar más claro, por ejemplo: baño de hombres o esquina de la papelería.",false); $("lugarTxt").focus(); return;}
+  if(!/^[\p{L}0-9 .,#°\-()]+$/u.test(zona)){showMsg("formMsg","El lugar solo puede tener letras, números y puntuación básica.",false); return;}
+  const nota=$("nota").value.trim().slice(0,200);
+  const malo=textoProblema(zona)||textoProblema(nota);
+  if(malo){showMsg("formMsg",malo,false); return;}
+  zona=zona.charAt(0).toUpperCase()+zona.slice(1);
+  if(!db){showMsg("formMsg","No hay conexión con el servidor. Revisa tu internet y recarga la página.",false); return;}
+  const now=Date.now(), mios=myId?regs.filter(r=>r.autor===myId):[];
+  if(mios.filter(r=>now-r.creado<10*60e3).length>=4){showMsg("formMsg","Vas muy rápido. Espera unos minutos antes de registrar otra vez.",false); return;}
+  if(mios.filter(r=>now-r.creado<864e5).length>=20){showMsg("formMsg","Llegaste al límite de 20 registros por día.",false); return;}
+  try{localStorage.setItem("cauce-grupo2",JSON.stringify({s:sem,c:car}));}catch(err){}
+  const accion=val("accion"), cat=accion==="problema"?val("cat"):null;
+  if(mios.some(r=>now-r.creado<6*36e5&&r.zona.toLowerCase()===zona.toLowerCase()&&(r.accion||"problema")===accion&&(accion==="revision"||r.categoria===cat))){
+    showMsg("formMsg","Ya registraste esto en este lugar hace poco. No hace falta repetirlo.",false); return;}
+  let foto=null;
+  if(accion==="problema"&&assets){
+    const f=$("foto").files[0];
+    if(!f){showMsg("formMsg","Toma una foto del problema. Sin foto no se puede reportar.",false); $("foto").focus(); return;}
+    if(f.size>15*1024*1024){showMsg("formMsg","La foto es muy pesada. Toma otra.",false); return;}
+  }
+  let doc={accion,grupo,lugar:val("lugar"),zona,nota:nota||null,clima:sky.dataset.w},ok;
+  if(accion==="problema"){const categoria=val("cat"),tipo=val("sub"),s=CATS[categoria].sub.find(x=>x.id===tipo);
+    doc={...doc,categoria,tipo,nivel:s.nivel,litros:s.litros||0,estado:"pendiente"}; ok=`Problema reportado en ${zona}. ${grupo} gana 10 puntos.`;}
+  else ok=`Revisión guardada: ${zona} está bien. ${grupo} gana 5 puntos.`;
+  $("send").disabled=true;
+  try{
+    if(accion==="problema"&&assets){ $("send").textContent="Subiendo foto…"; const blob=await compress($("foto").files[0]);
+      const path=`${myId}/${Date.now()}.jpg`; const up=await sb.storage.from("fotos").upload(path,blob,{contentType:"image/jpeg",upsert:false});
+      if(up.error) throw up.error; doc.foto=path; }
+    const {error}=await sb.from("registros").insert(doc); if(error) throw error;
+    showMsg("formMsg",ok,true); loadAll();
+    $("nota").value=""; $("lugarTxt").value=""; $("foto").value=""; $("fotoPrev").hidden=true; $("fotoTxt").textContent="Tomar o elegir foto";
+  }
+  catch(err){ const m=(err&&err.message)||""; showMsg("formMsg",m.startsWith("CAUCE: ")?m.slice(7):"No se pudo guardar. Revisa tu internet e inténtalo otra vez.",false); }
+  finally{$("send").disabled=!canWrite; syncMode();}
+});
+
+/* Selector de fondo */
+document.querySelectorAll('input[name="wx"]').forEach(r=>r.addEventListener("change",async()=>{
+  weather.estado=r.value; applyWeather();
+  if(sb&&isEditor){ try{ await sb.from("clima").upsert({id:1,estado:r.value,actualizado:new Date().toISOString()}); }catch(e){} }
+}));
+
+/* ---------- Conexión con Supabase ---------- */
+let reloadT=null;
+async function loadAll(){
+  const {data,error}=await sb.from("registros").select("*").order("creado",{ascending:false}).limit(1000);
+  if(error){ $("status").textContent="No se pudieron cargar los registros. Recarga la página."; return; }
+  regs=data.map(r=>({...r,creado:Date.parse(r.creado)}));
+  $("status").textContent=`${fmt(regs.length)} registros de las brigadas. Se actualiza en vivo.`; render();
+}
+async function loadClima(){ const {data}=await sb.from("clima").select("estado").eq("id",1).maybeSingle(); if(data&&data.estado){ weather.estado=data.estado; applyWeather(); } }
+async function startSession(){
+  let {data:{session}}=await sb.auth.getSession();
+  if(!session){ const r=await sb.auth.signInAnonymously(); if(r.error) throw r.error; session=r.data.session; }
+  const u=session.user; myId=u.id; isEditor=false;
+  if(!u.is_anonymous){ const {data}=await sb.from("admins").select("user_id").eq("user_id",u.id).maybeSingle(); isEditor=!!data; }
+  $("adminForm").hidden=!!(!u.is_anonymous); $("adminIn").hidden=!!u.is_anonymous;
+  if(!u.is_anonymous){ $("adWho").textContent=u.email||"usuario"; $("adId").textContent=u.id;
+    $("adRole").textContent=isEditor?"Puedes marcar reportes como atendidos, resueltos o falsos.":"Tu cuenta todavía no es de maestro. Pide que agreguen tu ID en Supabase.";
+    $("adminState").textContent=isEditor?"Modo maestro activo":"Sin permisos de maestro"; }
+  else $("adminState").textContent="Solo personal autorizado";
+}
+$("adminForm").addEventListener("submit",async e=>{
+  e.preventDefault(); if(!sb) return;
+  const email=$("adEmail").value.trim(), password=$("adPass").value;
+  if(!email||!password){ showMsg("adMsg","Escribe tu correo y contraseña.",false); return; }
+  $("adGo").disabled=true;
+  try{ await sb.auth.signOut(); const {error}=await sb.auth.signInWithPassword({email,password}); if(error) throw error;
+    $("adPass").value=""; $("adMsg").hidden=true; await startSession(); render(); }
+  catch(err){ showMsg("adMsg","Correo o contraseña incorrectos.",false); try{ await startSession(); }catch(e2){} }
+  finally{ $("adGo").disabled=false; }
+});
+$("adOut").addEventListener("click",async()=>{ await sb.auth.signOut(); await startSession(); render(); });
+
+(async()=>{
+  if(!window.supabase||SUPABASE_URL.includes("PEGA_AQUI")){ $("status").textContent="Falta configurar Supabase: pega la URL y la clave al inicio del script (ver README)."; return; }
+  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  try{ await startSession(); }catch(e){ $("status").textContent="No se pudo conectar. Revisa que los accesos anónimos estén activados en Supabase."; return; }
+  db=sb; assets=true;
+  await Promise.all([loadAll(),loadClima()]);
+  sb.channel("cauce")
+    .on("postgres_changes",{event:"*",schema:"public",table:"registros"},()=>{ clearTimeout(reloadT); reloadT=setTimeout(loadAll,400); })
+    .on("postgres_changes",{event:"*",schema:"public",table:"clima"},loadClima)
+    .subscribe();
+  setInterval(applyWeather,10*60*1000);
+})();
+</script>
+
+</body>
+</html>
